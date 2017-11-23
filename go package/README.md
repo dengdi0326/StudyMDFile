@@ -1,4 +1,4 @@
 go package
 - zip
    - compress
-   - decompress
+   - decompress
