@@ -1,98 +1,112 @@
 package main
 
 import (
-	"crypto/aes"
-	"encoding/hex"
-	"crypto/cipher"
+	"os"
 	"fmt"
-	"io"
+	"crypto/aes"
+	"crypto/cipher"
+
+	"encoding/pem"
+	"crypto/x509"
+	"crypto/rsa"
 	"crypto/rand"
+	"crypto/sha1"
 )
 
-func StreamDecode() {
-	key := []byte("example key 1234")
+var commonIIV = []byte{0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f}
 
-	//返回 解密后的 字符串
-	ciphertext, _ := hex.DecodeString("f363f3ccdcb12bb883abf484ba77d9cd7d32b5baecb3d4b1b3e0e4beffdb3ded")
-	fmt.Println("first", ciphertext)
+func Aes(){
+	plintext := []byte("My name is ")
 
-	//新建一个 Block 接口
-	block, err := aes.NewCipher(key)
+	if len(os.Args) > 1 {
+		plintext = []byte(os.Args[1])
+		fmt.Println("args:", os.Args[1])
+	}
+
+	key_test := "astaxie12798akljzmknm.ahkjkljl;k"
+	if len(os.Args) > 2 {
+		key_test = os.Args[2]
+	}
+
+	c, err := aes.NewCipher([]byte(key_test))
 	if err != nil {
-		panic(err)
-	}
-	fmt.Println()
-	fmt.Println("second", block)
-
-	//blocksize 字节块大小--工作在块模式--规定具体大小，一块一块处理
-	if len(ciphertext) < aes.BlockSize {
-		panic("ciphertext too short")
+		fmt.Println(err)
+		os.Exit(-1)
 	}
 
-	iv := ciphertext[:aes.BlockSize]
-	fmt.Println()
-	fmt.Println("third", iv)
+	cfb := cipher.NewCFBEncrypter(c, commonIIV)
+	cipjertext := make([]byte, len(plintext))
+	cfb.XORKeyStream(cipjertext, plintext)
+	fmt.Printf("%s=>%x\n", plintext, cipjertext)
 
-	ciphertext = ciphertext[aes.BlockSize:]
-	fmt.Println("/n", ciphertext)
-
-	mode := cipher.NewCBCDecrypter(block, iv)
-	fmt.Println(mode)
-
-	mode.CryptBlocks(ciphertext, ciphertext)
-	fmt.Println(ciphertext)
-	fmt.Printf("%s", ciphertext)
+	cfb = cipher.NewCFBDecrypter(c, commonIIV)
+	cipjertextcopy := make([]byte, len(plintext))
+	cfb.XORKeyStream(cipjertextcopy, cipjertext)
+	fmt.Printf("%s", cipjertextcopy)
 }
 
-func main(){
-	//加密
-	key := []byte("example key 1234")
-	plaintext := []byte("exampleplaintext")
+func main() {
+	msg := []byte("second example")
 
-	if  len(plaintext) % aes.BlockSize != 0 {
-		panic("plaintext len is wrong")
+	publicKeyData := `-----BEGIN PUBLIC KEY-----
+MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQDZsfv1qscqYdy4vY+P4e3cAtmv
+ppXQcRvrF1cB4drkv0haU24Y7m5qYtT52Kr539RdbKKdLAM6s20lWy7+5C0Dgacd
+wYWd/7PeCELyEipZJL07Vro7Ate8Bfjya+wltGK9+XNUIHiumUKULW4KDx21+1NL
+AUeJ6PeW+DAkmJWF6QIDAQAB
+-----END PUBLIC KEY-----`
+
+	pubBlock, _ := pem.Decode([]byte(publicKeyData))
+
+	pubKeyValue, err := x509.ParsePKIXPublicKey(pubBlock.Bytes)
+	if err != nil {
+		panic(err)
 	}
+	pub := pubKeyValue.(*rsa.PublicKey)
 
-	block, err := aes.NewCipher(key)
+	en, err := rsa.EncryptPKCS1v15(rand.Reader, pub, msg)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Printf("%x\n", en)
+
+	en2, err := rsa.EncryptOAEP(sha1.New(), rand.Reader, pub, msg, nil)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Printf("%x\n", en2)
+
+	privateKeyData := `-----BEGIN RSA PRIVATE KEY-----
+MIICXQIBAAKBgQDZsfv1qscqYdy4vY+P4e3cAtmvppXQcRvrF1cB4drkv0haU24Y
+7m5qYtT52Kr539RdbKKdLAM6s20lWy7+5C0DgacdwYWd/7PeCELyEipZJL07Vro7
+Ate8Bfjya+wltGK9+XNUIHiumUKULW4KDx21+1NLAUeJ6PeW+DAkmJWF6QIDAQAB
+AoGBAJlNxenTQj6OfCl9FMR2jlMJjtMrtQT9InQEE7m3m7bLHeC+MCJOhmNVBjaM
+ZpthDORdxIZ6oCuOf6Z2+Dl35lntGFh5J7S34UP2BWzF1IyyQfySCNexGNHKT1G1
+XKQtHmtc2gWWthEg+S6ciIyw2IGrrP2Rke81vYHExPrexf0hAkEA9Izb0MiYsMCB
+/jemLJB0Lb3Y/B8xjGjQFFBQT7bmwBVjvZWZVpnMnXi9sWGdgUpxsCuAIROXjZ40
+IRZ2C9EouwJBAOPjPvV8Sgw4vaseOqlJvSq/C/pIFx6RVznDGlc8bRg7SgTPpjHG
+4G+M3mVgpCX1a/EU1mB+fhiJ2LAZ/pTtY6sCQGaW9NwIWu3DRIVGCSMm0mYh/3X9
+DAcwLSJoctiODQ1Fq9rreDE5QfpJnaJdJfsIJNtX1F+L3YceeBXtW0Ynz2MCQBI8
+9KP274Is5FkWkUFNKnuKUK4WKOuEXEO+LpR+vIhs7k6WQ8nGDd4/mujoJBr5mkrw
+DPwqA3N5TMNDQVGv8gMCQQCaKGJgWYgvo3/milFfImbp+m7/Y3vCptarldXrYQWO
+AQjxwc71ZGBFDITYvdgJM1MTqc8xQek1FXn1vfpy2c6O
+-----END RSA PRIVATE KEY-----
+`
+	priBlock, _ := pem.Decode([]byte(privateKeyData))
+	priKey, err := x509.ParsePKCS1PrivateKey(priBlock.Bytes)
 	if err != nil {
 		panic(err)
 	}
 
-	ciphertext := make([]byte, aes.BlockSize + len(plaintext))
-	iv := ciphertext[:aes.BlockSize]
-	if _, err := io.ReadFull(rand.Reader, iv); err != nil {
-		panic(err)
-	}
-
-	mode := cipher.NewCBCEncrypter(block, iv)
-	mode.CryptBlocks(ciphertext[:aes.BlockSize], plaintext)
-	fmt.Printf("%x\n", ciphertext)
-
-
-
-	// 流数加密，没有长度限制，对比上述代码少了 长度比较 步骤
-	key2 := []byte("keyexample123456")
-	p := []byte("example")
-	b, err := aes.NewCipher(key2)
+	de, err := rsa.DecryptPKCS1v15(rand.Reader, priKey, en)
 	if err != nil {
 		panic(err)
 	}
+	fmt.Printf(string(de))
+	fmt.Println()
 
-	c := make([]byte, aes.BlockSize + len(p))
-	iv = c[:aes.BlockSize]
-	if _, err := io.ReadFull(rand.Reader, iv); err != nil {
+	de2, err := rsa.DecryptOAEP(sha1.New(), rand.Reader, priKey, en2, nil)
+	if err != nil {
 		panic(err)
 	}
-
-	m := cipher.NewCFBEncrypter(b, iv)
-	m.XORKeyStream(c[:aes.BlockSize], p)
-	fmt.Printf("%x\n", c)
-
-	//解密
-	a, _:= hex.DecodeString("09a3fef9e0a1fa089f9a3566be20a43500000000000000")
-	iv = a[:aes.BlockSize]
-	a = a[aes.BlockSize:]
-	stream := cipher.NewCFBDecrypter(b, iv)
-	stream.XORKeyStream(a, a)
-	fmt.Println(a)
+	fmt.Printf(string(de2))
 }
