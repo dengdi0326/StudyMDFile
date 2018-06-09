@@ -31,17 +31,18 @@ type node struct {
 }
 
 // 通道
-type PassQueue struct {
-	CarNum int
-	front *node
-	rear   *node
-}
+//type PassQueue struct {
+//	CarNum int
+//	front *node
+//	rear   *node
+//}
+
+type PassQueue []node
 
 var p    carPacking
 var pc   pCarPacking
 var pass PassQueue
 var a car
-var b int
 
 func A_Car(a car) {
 	if p.top < 3 {
@@ -52,12 +53,12 @@ func A_Car(a car) {
 		fmt.Println("停车成功")
 	}else {
 		fmt.Println("停车场已满")
-		var t *node
+		var t node
 		t.data = a.num
 		t.next = nil
-		pass.rear.next = t
-		pass.rear = t
-		pass.CarNum += 1
+		//pass.rear.next = &t
+		//pass.rear = &t
+		pass = append(pass, t)
 	}
 }
 
@@ -80,37 +81,39 @@ func D_car(n, t int){
 	}
 	pc.top = 0
 
-	if pass.CarNum == 0 {
+	if len(pass) == 0 {
 		fmt.Println("通道无车")
 		p.top -= 1
 		return
 	}
 
 	fmt.Println("通道有车")
-	a := pass.rear.next
-	pass.rear.next = a.next
+	a := pass[0]
+	pass = pass[1:]
 	p.park[0].num = a.data
 	p.park[0].time = t
-	pass.CarNum -= 1
 }
 
 func main() {
 
-	fmt.Println("1:停车   2:移车   3:显示所有信息     4:退出")
+	fmt.Println("A:停车   D:移车   P:显示停车场数目  W:显示等候停车数目    E:退出")
 
 	for {
-		fmt.Scan(&b)
-		switch b {
-		case 1:
-			fmt.Scan(&a.num ,&a.time, &a.stu)
+		fmt.Scanln(&a.stu, &a.num, &a.time)
+		switch a.stu{
+		case "A":
 			A_Car(a)
 
-		case 2:
-			fmt.Scan(&a.num ,&a.time, &a.stu)
+		case "D":
 			D_car(a.num, a.time)
-		case 3:
-			fmt.Println(p.top,pass.CarNum)
-		case 4: return
+		case "P":
+			fmt.Println(p.top)
+		case "W":
+			fmt.Println(len(pass))
+		case "E":
+			return
+		default:
+			fmt.Println("error")
 		}
 	}
 }
